@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<routes xmlns="http://camel.apache.org/schema/spring" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://camel.apache.org/schema/spring https://camel.apache.org/schema/spring/camel-spring-3.8.0.xsd">
+    <route id="http-receiver">
+        <from id="http-receiver-starter" uri="platform-http:/ping" />
+        <setHeader id="set-header-http-receiver" name="Content-Type">
+            <constant>application/json</constant>
+        </setHeader>
+        <setBody id="set-body-http-receiver">
+            <constant>{"msg" : "HELLO"}</constant>
+        </setBody>
+    </route>
+
+    <route id="send-msg">
+        <from id="send-socket-msg-to-all-starter" uri="platform-http:/send-msg"/>
+        <convertBodyTo type="java.lang.String"/>
+        <unmarshal>
+            <json library="Jackson"/>
+        </unmarshal>
+        <log message="${body}"/>
+
+        <bean ref="viewUpdate" method="upsertData(${body}, person, state-table)"/>
+        <bean ref="viewUpdate" method="appendData(${body}, person, log-table)"/>
+
+        <marshal>
+            <json library="Jackson"/>
+        </marshal>
+        <setBody>
+            <constant>test</constant>
+        </setBody>
+        <to uri="jms:queue:toto"/>
+    </route>
+
+
+    <!-- this route expects an input stream as input -->
+    <route>
+        <from uri="direct:broadcast-blendfile"/>
+        <inOnly uri="jms:topic:app.blend-files-broadcast?messageConverter=#jmsStreamConverter"/>
+        <log message="blend file ${header.id} has been broadcasted to online instances"/>
+        <setBody>
+            <constant>ok</constant>
+        </setBody>
+    </route>
+
+    <!-- this route stores blend files locally -->
+    <route>
+        <from uri="jms:topic:app.blend-files-broadcast?messageConverter=#jmsStreamConverter"/>
+        <setHeader name="CamelFileName">
+            <simple>${header.id}</simple>
+        </setHeader>
+        <setHeader name="hostname">
+            <constant>{{blenderqueue.hostname}}</constant>
+        </setHeader>
+        <wireTap pattern="inOnly" uri="jms:topic:app.notify-received">
+            <body>
+                  <simple>
+                    {
+                        "id" : "${header.hostname}-${header.id}",
+                        "hostname" : "${header.hostname}",
+                        "fileName" : "${header.id}",
+                        "status" : "loading..",
+                        "lastReceived": "${date:now:yyyyMMdd-HH:mm:ss}"
+                    }
+                  </simple>
+            </body>
+        </wireTap>
+        
+        <to uri="file:{{blenderqueue.blend.files.folder}}"/>
+
+        <log message="received file ${header.id} ${body.class}"/>
+
+        <wireTap pattern="inOnly" uri="jms:topic:app.notify-received">
+            <body>
+                  <simple>
+                    {
+                        "id" : "${header.hostname}-${header.id}",
+                        "hostname" : "${header.hostname}",
+                        "fileName" : "${header.id}",
+                        "status" : "received",
+                        "lastReceived": "${date:now:yyyyMMdd-HH:mm:ss}"
+                    }
+                  </simple>
+            </body>
+        </wireTap>
+    </route>
+
+    <route>
+        <from uri="jms:topic:app.notify-received"/>
+        <unmarshal>
+            <json library="Jackson"/>
+        </unmarshal>
+        <bean ref="viewUpdate" method="upsertData(${body}, blend-file-broadcast, broadcast-state-table)"/>
+    </route>
+
+    <route>
+        <from uri="platform-http:/open"/>
+        <unmarshal>
+            <json library="Jackson"/>
+        </unmarshal>
+        <setBody>
+            <simple>${body[fileName]}</simple>
+        </setBody>
+        <inOnly uri="jms:topic:app.open-blend-file"/>
+    </route>
+
+    <route>
+        <from uri="jms:topic:app.open-blend-file"/>
+        <onException>
+            <exception>java.lang.Exception</exception>
+            <handled>
+                <constant>true</constant>
+            </handled>
+            <log message="${body}"/>
+            <setHeader name="hostname">
+                <constant>{{blenderqueue.hostname}}</constant>
+            </setHeader>
+            <wireTap pattern="inOnly" uri="jms:topic:app.notify-opened">
+                <body>
+                      <simple>
+                        {
+                            "id" : "${header.hostname}-${header.id}",
+                            "hostname" : "${header.hostname}",
+                            "fileName" : "${header.id}",
+                            "status" : "open error",
+                            "lastReceived": "${date:now:yyyyMMdd-HH:mm:ss}"
+                        }
+                      </simple>
+                </body>
+            </wireTap>
+        </onException>
+        <removeHeaders pattern="*"/>
+        <setHeader name="id">
+            <simple>${body}</simple>
+        </setHeader>
+        <setBody>
+            <simple>
+                {
+                    "fileName": "${body}"
+                }
+            </simple>
+        </setBody>
+        <to uri="http:{{blenderqueue.local.blender.api}}/open"/>
+        <log message="blender api call :${body}"/>
+        <setHeader name="hostname">
+            <constant>{{blenderqueue.hostname}}</constant>
+        </setHeader>
+        <wireTap pattern="inOnly" uri="jms:topic:app.notify-opened">
+            <body>
+                  <simple>
+                    {
+                        "id" : "${header.hostname}-${header.id}",
+                        "hostname" : "${header.hostname}",
+                        "fileName" : "${header.id}",
+                        "status" : "open",
+                        "lastReceived": "${date:now:yyyyMMdd-HH:mm:ss}"
+                    }
+                  </simple>
+            </body>
+        </wireTap>
+    </route>
+
+    <route>
+        <from uri="jms:topic:app.notify-opened"/>
+        <unmarshal>
+            <json library="Jackson"/>
+        </unmarshal>
+        <bean ref="viewUpdate" method="upsertData(${body}, blend-file-broadcast, broadcast-state-table)"/>
+    </route>
+
+    <!-- role of this is to distribute the render taksks -->
+    <route>
+        <from uri="platform-http:/distributed-frame-render"/>
+        <unmarshal>
+            <json library="Jackson" unmarshalTypeName="net.alainpham.model.DistributedFrameRenderRequest"/>
+        </unmarshal>
+        <setBody>
+            <method ref="frameRenderTaskDistributor" method="calculateTasks"/>
+        </setBody>
+        <split>
+            <simple>${body}</simple>
+            <marshal>
+                <json library="Jackson" prettyPrint="true"/>
+            </marshal>
+            <log message="submit render ${body}"/>
+            <inOnly uri="jms:queue:app.render-region"/>
+        </split>
+        
+        <setBody>
+            <constant>{"status": "ok"}</constant>
+        </setBody>
+    </route>
+
+    <route>
+        <from uri="jms:queue:app.render-region"/>
+        <unmarshal>
+            <json library="Jackson"  unmarshalTypeName="net.alainpham.model.RenderRegionRequest"/>
+        </unmarshal>
+        <setBody>
+            <method ref="frameRenderTaskDistributor" method="startWorker"/>
+        </setBody>
+        <setProperty name="initialRequest">
+            <simple>${body}</simple>
+        </setProperty>
+        <marshal>
+            <json library="Jackson"/>
+        </marshal>
+        <wireTap pattern="inOnly" uri="jms:topic:app.notify-distributed-frame-render">
+            <body>
+                <simple>${body}</simple>
+            </body>
+        </wireTap>
+        <removeHeaders pattern="*"/>
+         <to uri="http:{{blenderqueue.local.blender.api}}/render-region"/>
+         <unmarshal>
+             <json library="Jackson"/>
+         </unmarshal>
+        <setHeader name="renderedFilePath">
+            <simple>${body[filePath]}</simple>
+        </setHeader>
+        <setBody>
+            <exchangeProperty>initialRequest</exchangeProperty>
+        </setBody>
+        <setBody>
+            <method ref="frameRenderTaskDistributor" method="doneWorker"/>
+        </setBody>
+        <bean ref="frameRenderTaskDistributor" method="computeCollectorData"/>
+        <marshal>
+            <json library="Jackson"/>
+        </marshal>
+        <setProperty name="enrichedRequestJson">
+            <simple>${body}</simple>
+        </setProperty>
+        <setBody>
+            <method ref="frameRenderTaskDistributor" method="getLocalPictureAsStream"/>
+        </setBody>
+        <inOnly uri="jms:queue:app.collector?messageConverter=#jmsStreamConverter"/>
+        <removeHeader headerName="CamelJmsDestinationName"/>
+        <wireTap pattern="inOnly" uri="jms:topic:app.notify-distributed-frame-render">
+            <body>
+                <exchangeProperty>enrichedRequestJson</exchangeProperty>
+            </body>
+        </wireTap>
+    </route>
+
+    <route>
+        <from uri="jms:topic:app.notify-distributed-frame-render"/>
+        <unmarshal>
+            <json library="Jackson"/>
+        </unmarshal>
+        <bean ref="viewUpdate" method="upsertData(${body}, distributed-frame-render-broadcast, distributed-frame-render-broadcast-state-table)"/>
+    </route>
+
+    <route>
+        <from uri="jms:queue:app.collector.{{blenderqueue.hostname}}?messageConverter=#jmsStreamConverter"/>
+        <log message="${body.class}"/>
+        <log message="${headers}"/>
+        <setHeader name="CamelFileName">
+            <simple>${header.renderId}.${header.renderedFilePath}</simple>
+        </setHeader>
+        <to uri="file:{{blenderqueue.render.files.collector.folder}}"/>
+        <setBody>
+            <simple>null</simple>
+        </setBody>
+        <inOnly uri="seda:showtile"/>
+        <setBody>
+            <simple>null</simple>
+        </setBody>
+        <aggregate strategyRef="renderAggregationStrat">
+            <correlationExpression>
+                <simple>${headers.renderId}</simple>
+            </correlationExpression>
+            <completionSizeExpression>
+                <simple>${headers.totalTiles}</simple>
+            </completionSizeExpression>
+            <setHeader name="CamelExecCommandArgs">
+                <simple>{{blenderqueue.render.files.collector.folder}}/${headers.renderId}*.png -geometry +0+0 {{blenderqueue.render.files.final.folder}}/${headers.renderId}.png</simple>
+            </setHeader>
+            <to uri="exec:{{blenderqueue.montage.executable}}"/>
+            <convertBodyTo type="java.lang.String"/>
+            <log message="${header.CamelExecStderr}"/>
+            <log message="done : ${header.renderId}"/>
+        </aggregate>
+    </route>
+
+
+    <!-- publish tile to screen -->
+    <route>
+        <from uri="seda:showtile"/>
+        <bean ref="frameRenderTaskDistributor" method="imageDataFromPng"/>
+        <bean ref="viewUpdate" method="upsertData(${body}, tile, tile-table)"/>
+    </route>
+</routes>
