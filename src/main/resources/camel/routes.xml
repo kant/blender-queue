@@ -288,4 +288,6 @@
         <bean ref="frameRenderTaskDistributor" method="imageDataFromPng"/>
         <bean ref="viewUpdate" method="upsertData(${body}, tile, tile-table)"/>
     </route>
+
+
 </routes>

@@ -25,9 +25,13 @@ docker run -it --rm \
 Start blender rest api
 
 ```
-blender -b -P blender-queue/rest-api.py -- target/renders
+blender -b -P rest-api.py -- target/renders target/blendfiles
 ```
 
+```
+docker run --rm -e QUARKUS_ARTEMIS_URL=tcp://172.17.0.1:61616 -e BLENDERQUEUE_HOSTNAME=holt blender-queue
+
+```
 
 ## Running the application in dev mode
 
@@ -122,5 +126,5 @@ done
 ```
 docker login
 docker build -t blender-queue -f src/main/docker/Dockerfile.jvm .
-docker tag blender-queue:latest YOUR_REPO/blender-queue:latest
+docker tag blender-queue:latest alainpham/blender-queue:latest
 ```
