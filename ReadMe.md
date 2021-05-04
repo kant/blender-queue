@@ -109,7 +109,7 @@ docker run -d --net primenet --ip 172.18.0.10 --name bqueue bqueue
 ```
 
 
-Stop or launch multple instaces
+Stop or launch multple instances
 
 ```
 NB_CONTAINERS=2
