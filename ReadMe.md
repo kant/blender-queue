@@ -105,7 +105,7 @@ docker run -d --rm \
 docker run --rm -p 8080:8080 -e QUARKUS_ARTEMIS_URL=tcp://172.17.0.1:61616 -e BLENDERQUEUE_HOSTNAME=alpha alainpham/bqueue:latest
 ```
 
-You can launch this on differn
+You can launch this on this different machines connected to the same broker to create a farm.
 
 Go to http://localhost:8080 and start rendering
 
