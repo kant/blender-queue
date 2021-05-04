@@ -9,6 +9,28 @@
 
 ![bqueue](assets/screenshot.png)
 
+## TOC
+
+- [Project bqueue](#project-bqueue)
+  - [Purpose of this project](#purpose-of-this-project)
+  - [TOC](#toc)
+    - [Features currently include](#features-currently-include)
+    - [Roadmap features](#roadmap-features)
+  - [Quickstart Setup](#quickstart-setup)
+    - [Running on baremetal or vms](#running-on-baremetal-or-vms)
+      - [Start an Apache Artemis Broker](#start-an-apache-artemis-broker)
+      - [Run Blender and bqueue app](#run-blender-and-bqueue-app)
+    - [Running with Docker images](#running-with-docker-images)
+      - [Start an Apache Artemis Broker](#start-an-apache-artemis-broker-1)
+      - [Run bqueue application](#run-bqueue-application)
+  - [Architecture details](#architecture-details)
+  - [Running the application in dev mode](#running-the-application-in-dev-mode)
+    - [Start blender rest api](#start-blender-rest-api)
+    - [Running bqueue app](#running-bqueue-app)
+    - [Run local container with specific network and IP address](#run-local-container-with-specific-network-and-ip-address)
+  - [Push on dockerhub](#push-on-dockerhub)
+
+
 ### Features currently include 
 
 * Dividing frame into tiles and distribute rendering on different instances (bare metal, virtual, cloud..)
