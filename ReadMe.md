@@ -1,12 +1,11 @@
 # Project bqueue
 
-
 ## Purpose of this project
 
 /!\ This project is at a Proof of concept stage. It works but it's very rudimentary.
 
-Aims at providing services to build and efficient blender 3D render farm.
-Aims at being a cheap option that can be used to leverage old hardware to contribute to faster renders on personal render farms.
+* Aims at providing services to build and efficient blender 3D render farm.
+* Aims at being a cheap option that can be used to leverage old hardware to contribute to faster renders on personal render farms.
 
 ![bqueue](assets/screenshot.png)
 
@@ -22,15 +21,51 @@ Aims at being a cheap option that can be used to leverage old hardware to contri
 ### Roadmap features 
 
 * Distribute frames of an animation to render
-
+* Make Eevee and Cycles GPU rendering possible.
 
 ##  Quickstart Setup
 
 Infra relies on a messaging system called Apache Artemis to load balance workloads according to their speed.
 
+### Running on baremetal or vms
+
+#### Start an Apache Artemis Broker
+
+* Download Apache Artemis [here](https://activemq.apache.org/components/artemis/download/)
+* Unzip the package and go to bin folder
+
+```
+./artemis create  --user admin --password admin --allow-anonymous Y ./../instances/eventbrk
+
+cd ./../instances/eventbrk/bin
+./artemis run
+```
+
+#### Run Blender and bqueue app
+
+Make sure to download Blender 2.92 and have it in your PATH.
+
+Download latest release [here](https://github.com/alainpham/bqueue/releases/download/latest/quarkus-app.tar.gz) : 
+
+```
+tar xzvf quarkus-app.tar.gz
+
+cd quarkus-app
+
+blender -b -P rest-api.py -- data/renders data/blendfiles
+
+export QUARKUS_ARTEMIS_URL=tcp://localhost:61616
+export BLENDERQUEUE_HOSTNAME=alpha
+java -jar quarkus-run.jar
+
+```
+Go to http://localhost:8080 and start rendering
+
+You can run as many instances of blender and quarkus-run.jar as you want. All instances need to connect to the same artemis broker.
+
 ### Running with Docker images
 
-#### Start an artemis broker
+#### Start an Apache Artemis Broker
 
 ```
 docker run -d --rm \
@@ -46,8 +81,10 @@ docker run -d --rm \
 #### Run bqueue application
 
 ```
-docker run --rm -p 8080:8080 -e QUARKUS_ARTEMIS_URL=tcp://172.17.0.1:61616 -e BLENDERQUEUE_HOSTNAME=alpha bqueue
+docker run --rm -p 8080:8080 -e QUARKUS_ARTEMIS_URL=tcp://172.17.0.1:61616 -e BLENDERQUEUE_HOSTNAME=alpha alainpham/bqueue:latest
 ```
+
+You can launch this on differn
 
 Go to http://localhost:8080 and start rendering
 
