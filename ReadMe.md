@@ -6,7 +6,7 @@
 /!\ This project is at a Proof of concept stage. It works but it's very rudimentary.
 
 Aims at providing services to build and efficient blender 3D render farm.
-Aimas at being a cheap option that can be used to leverage old hardware to contribute to faster renders on personal render farms.
+Aims at being a cheap option that can be used to leverage old hardware to contribute to faster renders on personal render farms.
 
 ![bqueue](assets/screenshot.png)
 
