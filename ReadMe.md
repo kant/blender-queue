@@ -1,13 +1,31 @@
-# Project blender-queue
+# Project bqueue
 
- # Purpose of this project
+## Purpose of this project
+
+/!\ This project is at a Proof of concept stage. It works but it's very rudimentary.
+
+Aims at providing services to build and efficient blender 3D render farm.
+Aimas at being a cheap option that can be used to leverage old hardware to contribute to faster renders on personal render farms.
+
+### Features currently include 
+
+* Dividing frame into tiles and distribute rendering on different instances (bare metal, virtual, cloud..)
+* Works on windows and linux
+* Merging tiles together as if it was rendered by a single machine
+* Seing the progress of tiles being ready in a webinterface.
+* Render components are completely distributed, there is no notion of coordinator/worker nodes, the only central piece is a messaging broker to broadcast,synchronize data betweeen instances.
+
+### Roadmap features 
+
+* Distribute frames of an animation to render
+
+### 
  
- Aims at providing services to build and efficient blender 3D render farm.
-
-
 ## Setup
 
 Infra relies on a messaging system called Apache Artemis to load balance workloads according to their speed.
+
+# Running with Docker images
 
 Start an artemis broker
 
@@ -29,7 +47,7 @@ blender -b -P rest-api.py -- target/renders target/blendfiles
 ```
 
 ```
-docker run --rm -e QUARKUS_ARTEMIS_URL=tcp://172.17.0.1:61616 -e BLENDERQUEUE_HOSTNAME=holt blender-queue
+docker run --rm -e QUARKUS_ARTEMIS_URL=tcp://172.17.0.1:61616 -e BLENDERQUEUE_HOSTNAME=holt bqueue
 
 ```
 
@@ -79,15 +97,15 @@ docker network create --driver=bridge --subnet=172.18.0.0/16 --gateway=172.18.0.
 ```
 
 ```
-docker stop blender-queue
-docker rm blender-queue
-docker rmi blender-queue
+docker stop bqueue
+docker rm bqueue
+docker rmi bqueue
 
-docker build -f src/main/docker/Dockerfile.fast-jar -t blender-queue-fast .
-docker build -f src/main/docker/Dockerfile.jvm -t blender-queue .
-docker build -f src/main/docker/Dockerfile.native -t blender-queue-native .
+docker build -f src/main/docker/Dockerfile.fast-jar -t bqueue-fast .
+docker build -f src/main/docker/Dockerfile.jvm -t bqueue .
+docker build -f src/main/docker/Dockerfile.native -t bqueue-native .
 
-docker run -d --net primenet --ip 172.18.0.10 --name blender-queue blender-queue
+docker run -d --net primenet --ip 172.18.0.10 --name bqueue bqueue
 ```
 
 
@@ -97,25 +115,25 @@ Stop or launch multple instaces
 NB_CONTAINERS=2
 for (( i=0; i<$NB_CONTAINERS; i++ ))
 do
-   docker stop blender-queue-$i
-   docker rm blender-queue-$i
+   docker stop bqueue-$i
+   docker rm bqueue-$i
 done
 
 
-docker rmi blender-queue
-docker build -t blender-queue .
+docker rmi bqueue
+docker build -t bqueue .
 ```
 
 Choose one of methods
 ```
-docker build -f src/main/docker/Dockerfile.fast-jar -t blender-queue-fast .
-docker build -f src/main/docker/Dockerfile.jvm -t blender-queue .
-docker build -f src/main/docker/Dockerfile.native -t blender-queue-native .```
+docker build -f src/main/docker/Dockerfile.fast-jar -t bqueue-fast .
+docker build -f src/main/docker/Dockerfile.jvm -t bqueue .
+docker build -f src/main/docker/Dockerfile.native -t bqueue-native .```
 ```
 ```
 for (( i=0; i<$NB_CONTAINERS; i++ ))
 do
-    docker run -d --net primenet --ip 172.18.0.1$i --name blender-queue-$i blender-queue
+    docker run -d --net primenet --ip 172.18.0.1$i --name bqueue-$i bqueue
 done
 
 ```
@@ -125,6 +143,6 @@ done
 
 ```
 docker login
-docker build -t blender-queue -f src/main/docker/Dockerfile.jvm .
-docker tag blender-queue:latest alainpham/blender-queue:latest
+docker build -t bqueue -f src/main/docker/Dockerfile.jvm .
+docker tag bqueue:latest alainpham/bqueue:latest
 ```
