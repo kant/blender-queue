@@ -168,7 +168,7 @@ docker rmi bqueue
 
 docker build -f src/main/docker/DockerfileBlender.jvm -t bqueue .
 
-docker run -d --net primenet --ip 172.18.0.10 --name bqueue -e QUARKUS_ARTEMIS_URL=tcp://172.18.0.1:61616 -e BLENDERQUEUE_HOSTNAME=alpha bqueue
+docker run -d --net primenet --ip 172.18.0.10 --name bqueue -e QUARKUS_ARTEMIS_URL=tcp://172.18.0.1:61616?consumerWindowSize=0 -e BLENDERQUEUE_HOSTNAME=alpha bqueue
 
 ```
 ## Push on dockerhub
