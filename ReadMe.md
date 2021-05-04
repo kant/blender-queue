@@ -9,7 +9,6 @@
 
 ![bqueue](assets/screenshot.png)
 
-
 ### Features currently include 
 
 * Dividing frame into tiles and distribute rendering on different instances (bare metal, virtual, cloud..)
